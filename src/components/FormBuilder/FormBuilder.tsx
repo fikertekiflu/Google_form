@@ -15,7 +15,11 @@ import {
   MoreVertical,
   GripVertical,
   ArrowLeft,
-  FileText
+  FileText,
+  Download,
+  Share2,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import QuestionEditor from './QuestionEditor';
 import QuestionRenderer from './QuestionRenderer';
@@ -39,7 +43,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onBackToLanding }) => {
       showProgressBar: true,
       allowMultipleResponses: true,
       theme: {
-        primaryColor: '#4285f4',
+        primaryColor: '#673AB7', // Google Forms purple
         backgroundColor: '#ffffff',
         fontFamily: 'Inter'
       }
@@ -52,6 +56,136 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onBackToLanding }) => {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showQuestionTypeSelector, setShowQuestionTypeSelector] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 18000000); // Auto-save after 5 hours of inactivity
+
+      return () => clearTimeout(timer);
+    }
+  }, [form, hasUnsavedChanges]);
+
+  // Track changes
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+  }, [form]);
+
+  const handleAutoSave = async () => {
+    if (!hasUnsavedChanges) return;
+    
+    setIsSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Save to localStorage as temporary save
+      localStorage.setItem(`formflow_temp_${form.id}`, JSON.stringify({
+        ...form,
+        updatedAt: new Date()
+      }));
+      
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      setShowSaveSuccess(true);
+      
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Save to localStorage
+      localStorage.setItem(`formflow_${form.id}`, JSON.stringify({
+        ...form,
+        updatedAt: new Date()
+      }));
+      
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      setShowSaveSuccess(true);
+      
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSend = () => {
+    // Implement send functionality
+    console.log('Sending form:', form);
+    alert('Form sharing functionality will be implemented here!');
+  };
+
+  const handleExport = () => {
+    // Export form data as PDF instead of JSON
+    const formData = {
+      title: form.title,
+      description: form.description,
+      questions: form.questions,
+      settings: form.settings,
+      exportDate: new Date().toISOString(),
+      exportType: 'PDF'
+    };
+    
+    // Create a simple PDF-like structure (in a real app, you'd use a PDF library)
+    const pdfContent = `
+FormFlow - Form Export
+=====================
+
+Form Title: ${formData.title}
+Description: ${formData.description}
+Export Date: ${new Date(formData.exportDate).toLocaleDateString()}
+
+Questions:
+${formData.questions.map((q, index) => `
+${index + 1}. ${q.title}
+   Type: ${q.type}
+   Required: ${q.required ? 'Yes' : 'No'}
+   ${q.options ? `Options: ${q.options.map(opt => opt.text).join(', ')}` : ''}
+`).join('')}
+
+Form Settings:
+- Theme: ${formData.settings.theme.primaryColor}
+- Collect Email: ${formData.settings.collectEmail ? 'Yes' : 'No'}
+- Show Progress Bar: ${formData.settings.showProgressBar ? 'Yes' : 'No'}
+    `;
+    
+    // Create and download the file
+    const blob = new Blob([pdfContent], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${form.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('Form exported as PDF:', formData);
+  };
+
+  const handleShare = () => {
+    // Implement share functionality
+    console.log('Sharing form:', form);
+    alert('Form sharing functionality will be implemented here!');
+  };
 
   const addQuestion = (type: QuestionType) => {
     console.log('Adding question of type:', type);
@@ -163,93 +297,138 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onBackToLanding }) => {
         fontFamily: form.settings.theme.fontFamily
       }}
     >
-      {/* Header - Google Forms Style */}
-      <div 
-        className="border-b border-gray-200 px-6 py-4"
-        style={{ backgroundColor: form.settings.theme.backgroundColor }}
-      >
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {onBackToLanding && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBackToLanding}
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2 py-1"
-              >
-                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-                <span className="text-sm">Back</span>
-              </Button>
-            )}
-                         <div className="flex items-center space-x-2">
-               <div 
-                 className="w-7 h-7 rounded flex items-center justify-center"
-                 style={{ backgroundColor: form.settings.theme.primaryColor }}
-               >
-                 <FileText className="h-3.5 w-3.5 text-white" />
-               </div>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                className="text-base font-medium border-none focus-visible:ring-0 px-0 text-gray-900 placeholder:text-gray-400"
-                placeholder="Untitled form"
-              />
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              onClick={onBackToLanding}
+              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-lg transition-all duration-200"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#673AB7] to-[#5E35B1] rounded-lg flex items-center justify-center shadow-sm">
+                <FileText className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-lg font-medium text-gray-900">FormFlow</span>
+                {lastSaved && (
+                  <div className="flex items-center space-x-1 text-xs text-gray-500">
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                    <span>Last saved {lastSaved.toLocaleTimeString()}</span>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            {/* Save Status */}
+            {showSaveSuccess && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-green-50 text-green-700 rounded-lg text-sm">
+                <CheckCircle className="h-4 w-4" />
+                <span>Saved successfully!</span>
+              </div>
+            )}
+            
+            {hasUnsavedChanges && !isSaving && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-yellow-50 text-yellow-700 rounded-lg text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <span>Unsaved changes</span>
+              </div>
+            )}
+            
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2 py-1"
+              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-lg transition-all duration-200"
             >
-              <Settings className="h-3.5 w-3.5 mr-1.5" />
+              <Settings className="h-4 w-4 mr-2" />
               <span className="text-sm">Settings</span>
             </Button>
           </div>
-          <div className="flex items-center space-x-2">
+          
+          <div className="flex items-center space-x-3">
             <Button
               variant="outline"
               onClick={() => setIsPreviewMode(!isPreviewMode)}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 text-sm"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 px-4 py-2 text-sm rounded-lg transition-all duration-200"
             >
-              <Eye className="h-3.5 w-3.5 mr-1.5" />
-              Preview
+              <Eye className="h-4 w-4 mr-2" />
+              {isPreviewMode ? 'Edit' : 'Preview'}
             </Button>
+            
             <Button 
               variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 text-sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 px-4 py-2 text-sm rounded-lg transition-all duration-200 disabled:opacity-50"
             >
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save
+              {isSaving ? (
+                <>
+                  <div className="h-4 w-4 mr-2 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </>
+              )}
             </Button>
-           <Button 
-               className="text-white px-3 py-1.5 text-sm"
-               style={{ 
-                 backgroundColor: form.settings.theme.primaryColor,
-                 '--tw-shadow-color': form.settings.theme.primaryColor
-               } as React.CSSProperties}
-             >
-               <Send className="h-3.5 w-3.5 mr-1.5" />
-               Send
-             </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={handleExport}
+              className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-50 transition-all duration-200"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={handleShare}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 px-4 py-2 text-sm rounded-lg transition-all duration-200"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+            
+            <Button 
+              onClick={handleSend}
+              className="text-white px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:shadow-lg"
+              style={{ 
+                backgroundColor: form.settings.theme.primaryColor,
+                '--tw-shadow-color': form.settings.theme.primaryColor
+              } as React.CSSProperties}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Send
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
         {isPreviewMode ? (
           <div className="max-w-2xl mx-auto">
             <Card 
-              className="shadow-sm border border-gray-200"
+              className="shadow-lg border border-gray-200 rounded-xl overflow-hidden"
               style={{ backgroundColor: form.settings.theme.backgroundColor }}
             >
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl text-gray-900">{form.title}</CardTitle>
+              <CardHeader className="pb-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                <CardTitle className="text-2xl font-semibold text-gray-900">{form.title}</CardTitle>
                 {form.description && (
-                  <p className="text-gray-600 mt-2 text-sm">{form.description}</p>
+                  <p className="text-gray-600 mt-3 text-base leading-relaxed">{form.description}</p>
                 )}
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-8 space-y-8">
                 {form.questions.map((question, index) => (
                   <QuestionRenderer
                     key={question.id}
@@ -261,421 +440,150 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onBackToLanding }) => {
             </Card>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             {/* Form Header */}
             <Card 
-              className="mb-8 border border-gray-200 transition-all duration-200 ease-out hover:shadow-lg"
+              className="mb-8 border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 ease-out overflow-hidden"
               style={{ backgroundColor: form.settings.theme.backgroundColor }}
             >
               <CardContent className="p-8">
-                <div className="space-y-4">
-                  <Input
-                    value={form.title}
-                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="text-2xl font-medium border-none focus-visible:ring-0 px-0 text-gray-900 placeholder:text-gray-400"
-                    placeholder="Untitled form"
-                  />
-                  <Textarea
-                    value={form.description}
-                    onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Form description"
-                    className="border-none focus-visible:ring-0 px-0 resize-none text-gray-600 placeholder:text-gray-400 text-sm"
-                    rows={2}
-                  />
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Input
+                      value={form.title}
+                      onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="text-3xl font-semibold border-none focus-visible:ring-0 px-0 text-gray-900 placeholder:text-gray-400 bg-transparent"
+                      placeholder="Untitled form"
+                    />
+                    <Textarea
+                      value={form.description}
+                      onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Form description"
+                      className="border-none focus-visible:ring-0 px-0 resize-none text-gray-600 placeholder:text-gray-400 text-base bg-transparent"
+                      rows={3}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Questions */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {form.questions.map((question, index) => (
                 <Card
                   key={question.id}
-                  className={`transition-all duration-200 ease-out border border-gray-200 hover:shadow-lg group transform hover:scale-[1.01] ${
-                    selectedQuestionId === question.id ? 'ring-2 ring-opacity-50' : ''
+                  className={`transition-all duration-300 ease-out border border-gray-200 rounded-xl hover:shadow-lg group transform hover:scale-[1.01] ${
+                    selectedQuestionId === question.id ? 'ring-2 ring-opacity-50 shadow-lg' : ''
                   }`}
                   style={{ 
                     backgroundColor: form.settings.theme.backgroundColor,
                     borderColor: selectedQuestionId === question.id ? form.settings.theme.primaryColor : undefined,
-                    boxShadow: selectedQuestionId === question.id ? `0 0 0 2px ${form.settings.theme.primaryColor}, 0 10px 25px -5px rgba(0, 0, 0, 0.1)` : undefined
+                    boxShadow: selectedQuestionId === question.id ? `0 0 0 2px ${form.settings.theme.primaryColor}, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)` : undefined
                   }}
                 >
                   <CardContent className="p-6">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex items-center space-x-2 text-gray-400 mt-1">
-                        <GripVertical className="h-4 w-4" />
-                        <span className="text-sm">{index + 1}</span>
-                      </div>
-                      <div className="flex-1">
-                        <InlineQuestionEditor
-                          question={question}
-                          questionNumber={index + 1}
-                          onUpdate={(updates) => updateQuestion(question.id, updates)}
-                          onDelete={() => deleteQuestion(question.id)}
-                          onDuplicate={() => duplicateQuestion(question.id)}
-                          isSelected={selectedQuestionId === question.id}
-                          onSelect={() => setSelectedQuestionId(question.id)}
-                          theme={form.settings.theme}
-                        />
-                      </div>
-                    </div>
+                    <InlineQuestionEditor
+                      question={question}
+                      questionNumber={index + 1}
+                      onUpdate={(updates) => updateQuestion(question.id, updates)}
+                      onDelete={() => deleteQuestion(question.id)}
+                      onDuplicate={() => duplicateQuestion(question.id)}
+                      isSelected={selectedQuestionId === question.id}
+                      onSelect={() => setSelectedQuestionId(question.id)}
+                      theme={form.settings.theme}
+                    />
                   </CardContent>
                 </Card>
               ))}
+
+              {/* Add First Question Button - Shows when no questions exist */}
+              {form.questions.length === 0 && (
+                <Card className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-300 ease-out hover:shadow-lg rounded-xl">
+                  <CardContent className="p-12 text-center">
+                    <div className="space-y-4">
+                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#673AB7] to-[#5E35B1] rounded-full flex items-center justify-center shadow-lg">
+                        <Plus className="h-8 w-8 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">Start building your form</h3>
+                        <p className="text-gray-600 mb-6">Add your first question to get started</p>
+                      </div>
+                      <Button
+                        onClick={() => setShowQuestionTypeSelector(true)}
+                        className="px-8 py-3 text-base font-medium rounded-lg transition-all duration-200 hover:shadow-lg transform hover:scale-105"
+                        style={{ backgroundColor: form.settings.theme.primaryColor }}
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Add your first question
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
-            {/* Add Question Button */}
-            <Card className="mt-8 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 ease-out hover:shadow-md hover:scale-[1.01]">
-              <CardContent className="p-6">
-                {showQuestionTypeSelector ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Text Questions */}
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">Text</h4>
-                                          <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
-                    onClick={() => { addQuestion('short_text'); setShowQuestionTypeSelector(false); }}
-                  >
-                          <span className="text-lg mr-2">Aa</span>
-                          Short answer
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('long_text'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">¶</span>
-                          Paragraph
-                        </Button>
-                      </div>
-                      
-                      {/* Choice Questions */}
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">Choice</h4>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('multiple_choice'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">○</span>
-                          Multiple choice
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('checkbox'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">☐</span>
-                          Checkboxes
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('dropdown'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">▼</span>
-                          Dropdown
-                        </Button>
-                      </div>
-                      
-                      {/* Grid Questions */}
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">Grid</h4>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('multiple_choice_grid'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">⊞</span>
-                          Multiple choice grid
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('checkbox_grid'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">⊟</span>
-                          Checkbox grid
-                        </Button>
-                      </div>
-                      
-                      {/* Other Questions */}
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">Other</h4>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('linear_scale'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">⚡</span>
-                          Linear scale
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('date'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">📅</span>
-                          Date
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('time'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">🕐</span>
-                          Time
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('email'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">✉️</span>
-                          Email
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left"
-                          onClick={() => { addQuestion('number'); setShowQuestionTypeSelector(false); }}
-                        >
-                          <span className="text-lg mr-2">🔢</span>
-                          Number
-                        </Button>
+            {/* Floating Action Button for Adding Questions */}
+            {!isPreviewMode && (
+              <div className="fixed bottom-8 right-8 z-50">
+                <Button
+                  onClick={() => setShowQuestionTypeSelector(!showQuestionTypeSelector)}
+                  className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  style={{ backgroundColor: form.settings.theme.primaryColor }}
+                >
+                  <Plus className="h-6 w-6 text-white" />
+                </Button>
+                
+                {/* Question Type Selector */}
+                {showQuestionTypeSelector && (
+                  <div className="absolute bottom-16 right-0 mb-4 bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-80">
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-900 mb-3">Add Question</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { type: 'short_text' as QuestionType, label: 'Short Answer', icon: 'Aa' },
+                          { type: 'long_text' as QuestionType, label: 'Paragraph', icon: '¶' },
+                          { type: 'multiple_choice' as QuestionType, label: 'Multiple Choice', icon: '○' },
+                          { type: 'checkbox' as QuestionType, label: 'Checkboxes', icon: '☐' },
+                          { type: 'dropdown' as QuestionType, label: 'Dropdown', icon: '▼' },
+                          { type: 'linear_scale' as QuestionType, label: 'Linear Scale', icon: '⚡' },
+                          { type: 'date' as QuestionType, label: 'Date', icon: '📅' },
+                          { type: 'email' as QuestionType, label: 'Email', icon: '✉️' }
+                        ].map((item) => (
+                          <Button
+                            key={item.type}
+                            variant="ghost"
+                            onClick={() => {
+                              addQuestion(item.type);
+                              setShowQuestionTypeSelector(false);
+                            }}
+                            className="justify-start p-3 h-auto text-left hover:bg-gray-50 rounded-lg transition-all duration-200"
+                          >
+                            <span className="text-lg mr-3">{item.icon}</span>
+                            <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                          </Button>
+                        ))}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowQuestionTypeSelector(false)}
-                      className="text-gray-500"
-                    >
-                      Cancel
-                    </Button>
                   </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full h-16 text-base font-medium border-2 border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Add Question button clicked');
-                      setShowQuestionTypeSelector(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Question
-                  </Button>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            )}
+
+            {/* Settings Panel */}
+            {showSettings && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <FormSettings
+                    form={form}
+                    onUpdate={(updates) => setForm(prev => ({ ...prev, ...updates }))}
+                    onClose={() => setShowSettings(false)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <FormSettings
-          form={form}
-          onUpdate={(updates) => setForm(prev => ({ ...prev, ...updates }))}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-
-      {/* Floating Action Button */}
-      {!isPreviewMode && !showQuestionTypeSelector && (
-                  <div className="fixed bottom-6 right-6 z-50">
-            <Button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('FAB clicked');
-                setShowQuestionTypeSelector(true);
-              }}
-              className="w-14 h-14 rounded-full shadow-lg text-white transition-all duration-300 hover:scale-110 hover:shadow-xl"
-              size="icon"
-              style={{ 
-                backgroundColor: form.settings.theme.primaryColor
-              }}
-            >
-            <Plus className="h-6 w-6" />
-          </Button>
-        </div>
-      )}
-
-      {/* Question Type Selector Modal */}
-      {showQuestionTypeSelector && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center transition-all duration-200 ease-out" 
-          onClick={() => setShowQuestionTypeSelector(false)}
-        >
-          <div 
-            className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto transform transition-all duration-200 ease-out" 
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Add Question</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowQuestionTypeSelector(false)}
-              >
-                ✕
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {/* Text Questions */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Text</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={(e) => { 
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Short text button clicked');
-                    addQuestion('short_text'); 
-                    setShowQuestionTypeSelector(false); 
-                  }}
-                >
-                  <span className="text-lg mr-2">Aa</span>
-                  Short answer
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('long_text'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">¶</span>
-                  Paragraph
-                </Button>
-              </div>
-              
-              {/* Choice Questions */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Choice</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('multiple_choice'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">○</span>
-                  Multiple choice
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('checkbox'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">☐</span>
-                  Checkboxes
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('dropdown'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">▼</span>
-                  Dropdown
-                </Button>
-              </div>
-              
-              {/* Grid Questions */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Grid</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('multiple_choice_grid'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">⊞</span>
-                  Multiple choice grid
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('checkbox_grid'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">⊟</span>
-                  Checkbox grid
-                </Button>
-              </div>
-              
-              {/* Other Questions */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Other</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('linear_scale'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">⚡</span>
-                  Linear scale
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('date'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">📅</span>
-                  Date
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('time'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">🕐</span>
-                  Time
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('email'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">✉️</span>
-                  Email
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-left"
-                  onClick={() => { addQuestion('number'); setShowQuestionTypeSelector(false); }}
-                >
-                  <span className="text-lg mr-2">🔢</span>
-                  Number
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
