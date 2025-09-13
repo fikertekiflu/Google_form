@@ -8,9 +8,10 @@ import {
   Copy, 
   Trash2, 
   Plus, 
-  MoreVertical,
-  Settings,
-  Eye
+  Upload,
+  Image as ImageIcon,
+  Video,
+  FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -20,13 +21,14 @@ interface InlineQuestionEditorProps {
   onUpdate: (updates: Partial<Question>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  isSelected: boolean;
-  onSelect: () => void;
   theme?: {
     primaryColor: string;
     backgroundColor: string;
     fontFamily: string;
   };
+  onOpenImageModal: (onInsert: (data: any) => void) => void;
+  onOpenVideoModal: (onInsert: (data: any) => void) => void;
+  onAddTitleDescription?: () => void;
 }
 
 const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
@@ -35,12 +37,12 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
   onUpdate,
   onDelete,
   onDuplicate,
-  isSelected,
-  onSelect,
-  theme
+  theme,
+  onOpenImageModal,
+  onOpenVideoModal,
+  onAddTitleDescription
 }) => {
   const [newOption, setNewOption] = useState('');
-  const [showOptions, setShowOptions] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -60,6 +62,7 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
     { value: 'time', label: 'Time', icon: '🕐' },
     { value: 'email', label: 'Email', icon: '✉️' },
     { value: 'number', label: 'Number', icon: '🔢' },
+    { value: 'file_upload', label: 'File Upload', icon: '📎' },
   ];
 
   const addOption = () => {
@@ -93,67 +96,76 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
 
   const removeOption = (optionId: string) => {
     if (question.options) {
-      onUpdate({
-        options: question.options.filter(opt => opt.id !== optionId)
-      });
+      const updatedOptions = question.options.filter(option => option.id !== optionId);
+      onUpdate({ options: updatedOptions });
     }
   };
 
-  const updateOption = (optionId: string, text: string) => {
-    if (question.options) {
-      onUpdate({
-        options: question.options.map(opt =>
-          opt.id === optionId ? { ...opt, text, value: text.toLowerCase().replace(/\s+/g, '_') } : opt
-        )
-      });
-    }
+  const handleInsertImage = (imageData: { url: string; alt?: string; title?: string }) => {
+    onUpdate({
+      settings: {
+        ...question.settings,
+        imageUrl: imageData.url,
+        imageAlt: imageData.alt,
+        imageTitle: imageData.title
+      }
+    });
   };
+
+  const handleInsertVideo = (videoData: { url: string; title?: string; description?: string }) => {
+    onUpdate({
+      settings: {
+        ...question.settings,
+        videoUrl: videoData.url,
+        videoTitle: videoData.title,
+        videoDescription: videoData.description
+      }
+    });
+  };
+
 
   const renderQuestionContent = () => {
     switch (question.type) {
       case 'short_text':
         return (
-          <div className="mt-4">
+          <div className="mt-6">
             <Input
               placeholder="Short answer text"
-              className="border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
               disabled
+              className="border-gray-300"
             />
           </div>
         );
 
       case 'long_text':
         return (
-          <div className="mt-4">
+          <div className="mt-6">
             <Textarea
               placeholder="Long answer text"
-              className="border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
-              rows={3}
               disabled
+              className="border-gray-300 min-h-[100px]"
             />
           </div>
         );
 
-             case 'multiple_choice':
-       case 'checkbox':
-         return (
-           <div className="mt-6 space-y-4">
-                         {question.options?.map((option, index) => (
-               <div key={option.id} className="flex items-center space-x-4">
-                 <div className={`w-4 h-4 ${question.type === 'multiple_choice' ? 'border-2 border-gray-300 rounded-full' : 'border-2 border-gray-300 rounded'}`}></div>
+      case 'multiple_choice':
+        return (
+          <div className="mt-6 space-y-4">
+            {(question.options || []).map((option, index) => (
+              <div key={option.id} className="flex items-center space-x-3">
+                <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
                 <Input
                   value={option.text}
-                  onChange={(e) => updateOption(option.id, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
-                  className="flex-1 border-gray-300"
-                  style={{
-                    '--tw-ring-color': theme?.primaryColor || '#673ab7',
-                    '--tw-border-opacity': '1'
-                  } as React.CSSProperties}
+                  onChange={(e) => {
+                    const updatedOptions = [...(question.options || [])];
+                    updatedOptions[index] = { ...option, text: e.target.value };
+                    onUpdate({ options: updatedOptions });
+                  }}
+                  className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
                 />
                 <Button
-                  variant="ghost"
                   size="sm"
+                  variant="ghost"
                   onClick={() => removeOption(option.id)}
                   className="text-gray-400 hover:text-red-500"
                 >
@@ -161,8 +173,9 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
                 </Button>
               </div>
             ))}
-            <div className="flex items-center space-x-4">
-              <div className={`w-4 h-4 ${question.type === 'multiple_choice' ? 'border-2 border-gray-300 rounded-full' : 'border-2 border-gray-300 rounded'}`}></div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
               <Input
                 value={newOption}
                 onChange={(e) => setNewOption(e.target.value)}
@@ -170,55 +183,46 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    console.log('Enter pressed, adding option');
                     addOption();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
                   }
                 }}
                 className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
               />
-                           <Button 
-                 size="sm"
-                 type="button"
-                 onClick={(e) => {
-                   e.preventDefault();
-                   e.stopPropagation();
-                   e.nativeEvent.stopImmediatePropagation();
-                   console.log('Add option button clicked, newOption:', newOption);
-                   addOption();
-                 }} 
-                 className="text-white cursor-pointer transition-all duration-200 hover:scale-105"
-                 disabled={!newOption.trim()}
-                 style={{ 
-                   backgroundColor: theme?.primaryColor || '#673ab7',
-                   opacity: newOption.trim() ? 1 : 0.5
-                 }}
-               >
-                 <Plus className="h-4 w-4" />
-               </Button>
+              <Button
+                size="sm"
+                type="button"
+                onClick={addOption}
+                disabled={!newOption.trim()}
+                className="text-white"
+                style={{ 
+                  backgroundColor: theme?.primaryColor || '#673ab7',
+                  opacity: newOption.trim() ? 1 : 0.5
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         );
 
-      case 'dropdown':
+      case 'checkbox':
         return (
           <div className="mt-6 space-y-4">
-            {question.options?.map((option, index) => (
-              <div key={option.id} className="flex items-center space-x-4">
-                <span className="text-sm text-gray-500 w-4">{index + 1}.</span>
+            {(question.options || []).map((option, index) => (
+              <div key={option.id} className="flex items-center space-x-3">
+                <div className="w-4 h-4 border-2 border-gray-300 rounded"></div>
                 <Input
                   value={option.text}
-                  onChange={(e) => updateOption(option.id, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
+                  onChange={(e) => {
+                    const updatedOptions = [...(question.options || [])];
+                    updatedOptions[index] = { ...option, text: e.target.value };
+                    onUpdate({ options: updatedOptions });
+                  }}
                   className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
                 />
                 <Button
-                  variant="ghost"
                   size="sm"
+                  variant="ghost"
                   onClick={() => removeOption(option.id)}
                   className="text-gray-400 hover:text-red-500"
                 >
@@ -226,7 +230,65 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
                 </Button>
               </div>
             ))}
-            <div className="flex items-center space-x-4">
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 border-2 border-gray-300 rounded"></div>
+              <Input
+                value={newOption}
+                onChange={(e) => setNewOption(e.target.value)}
+                placeholder="Add option"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addOption();
+                  }
+                }}
+                className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
+              />
+              <Button
+                size="sm"
+                type="button"
+                onClick={addOption}
+                disabled={!newOption.trim()}
+                className="text-white"
+                style={{ 
+                  backgroundColor: theme?.primaryColor || '#673ab7',
+                  opacity: newOption.trim() ? 1 : 0.5
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'dropdown':
+        return (
+          <div className="mt-6 space-y-4">
+            {(question.options || []).map((option, index) => (
+              <div key={option.id} className="flex items-center space-x-3">
+                <span className="text-sm text-gray-500 w-4">{index + 1}.</span>
+                <Input
+                  value={option.text}
+                  onChange={(e) => {
+                    const updatedOptions = [...(question.options || [])];
+                    updatedOptions[index] = { ...option, text: e.target.value };
+                    onUpdate({ options: updatedOptions });
+                  }}
+                  className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeOption(option.id)}
+                  className="text-gray-400 hover:text-red-500"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            
+            <div className="flex items-center space-x-3">
               <span className="text-sm text-gray-500 w-4">{(question.options?.length || 0) + 1}.</span>
               <Input
                 value={newOption}
@@ -235,45 +297,33 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    console.log('Enter pressed, adding dropdown option');
                     addOption();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
                   }
                 }}
                 className="flex-1 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
               />
-                           <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.nativeEvent.stopImmediatePropagation();
-                  console.log('Add dropdown option button clicked, newOption:', newOption);
-                  addOption();
-                }} 
-                className="text-white cursor-pointer"
+                onClick={addOption}
                 disabled={!newOption.trim()}
+                className="text-white"
                 style={{ 
                   backgroundColor: theme?.primaryColor || '#673ab7',
                   opacity: newOption.trim() ? 1 : 0.5
                 }}
               >
-                 <Plus className="h-4 w-4" />
-               </Button>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         );
 
-             case 'linear_scale':
-         const min = question.settings?.linearScaleMin || 1;
-         const max = question.settings?.linearScaleMax || 5;
-         return (
-           <div className="mt-6 space-y-6">
+      case 'linear_scale':
+        const min = question.settings?.linearScaleMin || 1;
+        const max = question.settings?.linearScaleMax || 5;
+        return (
+          <div className="mt-6 space-y-6">
             <div className="flex items-center justify-between text-sm text-gray-600">
               <Input
                 value={question.settings?.linearScaleLabels?.min || min.toString()}
@@ -303,139 +353,229 @@ const InlineQuestionEditor: React.FC<InlineQuestionEditorProps> = ({
                 className="w-24 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7] text-center"
               />
             </div>
-            <div className="flex items-center justify-between space-x-2">
-              {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((num) => (
-                <div key={num} className="flex flex-col items-center space-y-1">
+            
+            <div className="flex items-center justify-between">
+              {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((value) => (
+                <div key={value} className="flex flex-col items-center space-y-2">
                   <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
-                  <span className="text-xs text-gray-600">{num}</span>
+                  <span className="text-sm text-gray-500">{value}</span>
                 </div>
               ))}
             </div>
           </div>
         );
 
+      case 'file_upload':
+        return (
+          <div className="mt-6">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">File upload placeholder</p>
+            </div>
+          </div>
+        );
+
+      case 'title_description':
+        return (
+          <div className="mt-6 space-y-4">
+            <div>
+              <Input
+                value={question.title}
+                onChange={(e) => onUpdate({ title: e.target.value })}
+                placeholder="Title"
+                className="text-2xl font-semibold border-none focus:ring-0 p-0 bg-transparent"
+              />
+            </div>
+            <div>
+              <Textarea
+                value={question.description || ''}
+                onChange={(e) => onUpdate({ description: e.target.value })}
+                placeholder="Description (optional)"
+                className="text-base text-gray-600 border-none focus:ring-0 p-0 resize-none bg-transparent"
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
       default:
         return (
-          <div className="mt-4">
-            <Input
-              placeholder={`${question.type.replace('_', ' ')} input`}
-              className="border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]"
-              disabled
-            />
+          <div className="mt-6">
+            <p className="text-gray-500">Question type not implemented yet</p>
           </div>
         );
     }
   };
 
   return (
-    <div 
-      className="border-l-4 p-6 transition-all duration-200 ease-out hover:shadow-md" 
-      onClick={onSelect}
-      style={{
-        borderLeftColor: theme?.primaryColor || '#673ab7',
-        backgroundColor: theme?.backgroundColor || 'white'
-      }}
-    >
-      <div className="space-y-6">
-        {/* Question Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1 space-y-4">
-                         {/* Question Type Selector */}
-             <div className="flex items-center space-x-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      {/* Google Forms-style Toolbar */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-gray-600 hover:text-gray-800"
+            title="Add question"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onAddTitleDescription}
+            className="text-gray-600 hover:text-gray-800"
+            title="Add title and description"
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onOpenImageModal(handleInsertImage)}
+            className="text-gray-600 hover:text-gray-800"
+            title="Add image"
+          >
+            <ImageIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onOpenVideoModal(handleInsertVideo)}
+            className="text-gray-600 hover:text-gray-800"
+            title="Add video"
+          >
+            <Video className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-gray-600 hover:text-gray-800"
+            title="Add section"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Question Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          {question.type === 'title_description' ? (
+            <span className="text-sm text-gray-500">Title & Description</span>
+          ) : (
+            <>
+              <span className="text-sm text-gray-500">Question {questionNumber}</span>
               <Select
                 value={question.type}
                 onValueChange={(value: QuestionType) => onUpdate({ type: value })}
               >
-                <SelectTrigger 
-                  className="w-48 border-gray-300 transition-all duration-200 hover:shadow-sm hover:scale-[1.02]"
-                  style={{
-                    '--tw-ring-color': theme?.primaryColor || '#673ab7',
-                    '--tw-border-opacity': '1'
-                  } as React.CSSProperties}
-                >
+                <SelectTrigger className="w-48 border-gray-300 focus:border-[#673ab7] focus:ring-[#673ab7]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {questionTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
-                      <div className="flex items-center space-x-2">
+                      <span className="flex items-center space-x-2">
                         <span>{type.icon}</span>
                         <span>{type.label}</span>
-                      </div>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
-                             {/* Required Toggle */}
-               <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id={`required-${question.id}`}
-                  checked={question.required}
-                  onChange={(e) => onUpdate({ required: e.target.checked })}
-                  className="w-4 h-4 border-gray-300 rounded"
-                  style={{
-                    '--tw-ring-color': theme?.primaryColor || '#673ab7',
-                    '--tw-text-opacity': '1'
-                  } as React.CSSProperties}
-                />
-                <label htmlFor={`required-${question.id}`} className="text-sm text-gray-700">
-                  Required
-                </label>
-              </div>
-            </div>
+            </>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDuplicate}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDelete}
+            className="text-gray-400 hover:text-red-500"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-            {/* Question Title */}
-            <Input
-              value={question.title}
-              onChange={(e) => onUpdate({ title: e.target.value })}
-              placeholder="Question"
-              className="text-lg font-medium border-none focus-visible:ring-0 px-0 text-gray-900 placeholder:text-gray-400"
+      {/* Question Title */}
+      {question.type !== 'title_description' && (
+        <div className="mb-4">
+          <Input
+            value={question.title}
+            onChange={(e) => onUpdate({ title: e.target.value })}
+            placeholder="Question title"
+            className="text-lg font-medium border-none focus:ring-0 p-0"
+          />
+        </div>
+      )}
+
+      {/* Question Description */}
+      {question.type !== 'title_description' && (
+        <div className="mb-4">
+          <Input
+            value={question.description || ''}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+            placeholder="Description (optional)"
+            className="text-sm text-gray-600 border-none focus:ring-0 p-0"
+          />
+        </div>
+      )}
+
+      {/* Question Content */}
+      {renderQuestionContent()}
+
+      {/* Display inserted images and videos */}
+      {question.settings?.imageUrl && (
+        <div className="mt-4">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <img
+              src={question.settings.imageUrl}
+              alt={question.settings.imageAlt || 'Inserted image'}
+              className="max-w-full h-auto max-h-48 mx-auto rounded"
             />
-
-            {/* Question Description */}
-            <Textarea
-              value={question.description || ''}
-              onChange={(e) => onUpdate({ description: e.target.value })}
-              placeholder="Description (optional)"
-              className="border-none focus-visible:ring-0 px-0 resize-none text-gray-600 placeholder:text-gray-400 text-sm"
-              rows={1}
-            />
-          </div>
-
-                     {/* Action Buttons */}
-                       <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out">
-                         <Button
-               variant="ghost"
-               size="sm"
-               onClick={(e) => {
-                 e.stopPropagation();
-                 onDuplicate();
-               }}
-                               className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-3 transition-all duration-200 hover:scale-110"
-               title="Duplicate question"
-             >
-              <Copy className="h-4 w-4" />
-            </Button>
-                         <Button
-               variant="ghost"
-               size="sm"
-               onClick={(e) => {
-                 e.stopPropagation();
-                 onDelete();
-               }}
-                               className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-3 transition-all duration-200 hover:scale-110"
-               title="Delete question"
-             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {question.settings.imageTitle && (
+              <p className="text-sm text-gray-600 mt-2 text-center">{question.settings.imageTitle}</p>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Question Content */}
-        {renderQuestionContent()}
-      </div>
+      {question.settings?.videoUrl && (
+        <div className="mt-4">
+          <div className="border border-gray-200 rounded-lg p-4">
+            {question.settings.videoUrl.includes('youtube.com') || question.settings.videoUrl.includes('youtu.be') ? (
+              <div className="aspect-video">
+                <iframe
+                  src={question.settings.videoUrl.replace('watch?v=', 'embed/')}
+                  className="w-full h-full rounded"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <video
+                src={question.settings.videoUrl}
+                controls
+                className="max-w-full h-auto max-h-48 mx-auto rounded"
+              />
+            )}
+            {question.settings.videoTitle && (
+              <p className="text-sm text-gray-600 mt-2 text-center">{question.settings.videoTitle}</p>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

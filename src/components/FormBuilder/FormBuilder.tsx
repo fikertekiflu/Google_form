@@ -10,10 +10,6 @@ import {
   Eye, 
   Send, 
   Save, 
-  Trash2, 
-  Copy,
-  MoreVertical,
-  GripVertical,
   ArrowLeft,
   FileText,
   Download,
@@ -21,10 +17,11 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import QuestionEditor from './QuestionEditor';
 import QuestionRenderer from './QuestionRenderer';
 import InlineQuestionEditor from './InlineQuestionEditor';
 import FormSettings from './FormSettings';
+import ImageInsertModal from './ImageInsertModal';
+import VideoInsertModal from './VideoInsertModal';
 import { v4 as uuidv4 } from 'uuid';
 
 interface FormBuilderProps {
@@ -60,6 +57,14 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onBackToLanding }) => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  
+  // Global modals state
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [modalContext, setModalContext] = useState<{
+    questionId?: string;
+    onInsert?: (data: any) => void;
+  }>({});
 
   // Auto-save functionality
   useEffect(() => {
@@ -217,6 +222,14 @@ Form Settings:
         ? { linearScaleMin: 1, linearScaleMax: 5 }
         : type === 'multiple_choice' || type === 'checkbox'
         ? { allowOther: false, otherText: 'Other:', shuffleOptions: false }
+        : type === 'file_upload'
+        ? { allowMultiple: false }
+        : undefined,
+      validation: type === 'file_upload'
+        ? { 
+            fileTypes: ['image/*', 'application/pdf'],
+            maxFileSize: 10 * 1024 * 1024 // 10MB
+          }
         : undefined
     };
 
@@ -226,6 +239,24 @@ Form Settings:
       updatedAt: new Date()
     }));
     setSelectedQuestionId(newQuestion.id);
+  };
+
+  const addTitleDescription = () => {
+    console.log('Adding title and description section');
+    const newTitleDescription: Question = {
+      id: uuidv4(),
+      type: 'title_description',
+      title: 'Untitled Title',
+      description: 'Description (optional)',
+      required: false
+    };
+
+    setForm(prev => ({
+      ...prev,
+      questions: [...prev.questions, newTitleDescription],
+      updatedAt: new Date()
+    }));
+    setSelectedQuestionId(newTitleDescription.id);
   };
 
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
@@ -275,19 +306,34 @@ Form Settings:
     }
   };
 
-  const moveQuestion = (fromIndex: number, toIndex: number) => {
-    const newQuestions = [...form.questions];
-    const [movedQuestion] = newQuestions.splice(fromIndex, 1);
-    newQuestions.splice(toIndex, 0, movedQuestion);
-    
-    setForm(prev => ({
-      ...prev,
-      questions: newQuestions,
-      updatedAt: new Date()
-    }));
+
+  // Global modal handlers
+  const openImageModal = (questionId?: string, onInsert?: (data: any) => void) => {
+    setModalContext({ questionId, onInsert });
+    setShowImageModal(true);
   };
 
-  const selectedQuestion = form.questions.find(q => q.id === selectedQuestionId);
+  const openVideoModal = (questionId?: string, onInsert?: (data: any) => void) => {
+    setModalContext({ questionId, onInsert });
+    setShowVideoModal(true);
+  };
+
+  const handleInsertImage = (imageData: { url: string; alt?: string; title?: string }) => {
+    if (modalContext.questionId && modalContext.onInsert) {
+      modalContext.onInsert(imageData);
+    }
+    setShowImageModal(false);
+    setModalContext({});
+  };
+
+  const handleInsertVideo = (videoData: { url: string; title?: string; description?: string }) => {
+    if (modalContext.questionId && modalContext.onInsert) {
+      modalContext.onInsert(videoData);
+    }
+    setShowVideoModal(false);
+    setModalContext({});
+  };
+
 
   return (
     <div 
@@ -434,6 +480,7 @@ Form Settings:
                     key={question.id}
                     question={question}
                     questionNumber={index + 1}
+                    theme={form.settings.theme}
                   />
                 ))}
               </CardContent>
@@ -488,9 +535,10 @@ Form Settings:
                       onUpdate={(updates) => updateQuestion(question.id, updates)}
                       onDelete={() => deleteQuestion(question.id)}
                       onDuplicate={() => duplicateQuestion(question.id)}
-                      isSelected={selectedQuestionId === question.id}
-                      onSelect={() => setSelectedQuestionId(question.id)}
                       theme={form.settings.theme}
+                      onOpenImageModal={(onInsert) => openImageModal(question.id, onInsert)}
+                      onOpenVideoModal={(onInsert) => openVideoModal(question.id, onInsert)}
+                      onAddTitleDescription={addTitleDescription}
                     />
                   </CardContent>
                 </Card>
@@ -547,7 +595,8 @@ Form Settings:
                           { type: 'dropdown' as QuestionType, label: 'Dropdown', icon: '▼' },
                           { type: 'linear_scale' as QuestionType, label: 'Linear Scale', icon: '⚡' },
                           { type: 'date' as QuestionType, label: 'Date', icon: '📅' },
-                          { type: 'email' as QuestionType, label: 'Email', icon: '✉️' }
+                          { type: 'email' as QuestionType, label: 'Email', icon: '✉️' },
+                          { type: 'file_upload' as QuestionType, label: 'File Upload', icon: '📎' }
                         ].map((item) => (
                           <Button
                             key={item.type}
@@ -584,6 +633,21 @@ Form Settings:
           </div>
         )}
       </div>
+
+      {/* Global Modals */}
+      <ImageInsertModal
+        isOpen={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        onInsertImage={handleInsertImage}
+        theme={form.settings.theme}
+      />
+
+      <VideoInsertModal
+        isOpen={showVideoModal}
+        onClose={() => setShowVideoModal(false)}
+        onInsertVideo={handleInsertVideo}
+        theme={form.settings.theme}
+      />
     </div>
   );
 };

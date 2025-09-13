@@ -55,7 +55,9 @@ export interface Question {
     imageUrl?: string;
     videoUrl?: string;
     imageAlt?: string;
+    imageTitle?: string;
     videoTitle?: string;
+    videoDescription?: string;
   };
 }
 

@@ -152,7 +152,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
     onMenuClick(); // Navigate to menu page which has folder organization
   };
 
-  return (
+    return (
     <div className="w-full min-h-screen bg-[#f0f3f4] m-0 p-0">
       {/* Header - Styled to match Google's header */}
       <div className="w-full bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
@@ -175,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
           </div>
 
           <div className="flex-1 max-w-2xl mx-8">
-             <div className="relative">
+            <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
               <input
                 type="text"
@@ -244,10 +244,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
                   <h3 className="font-medium text-gray-900 text-base">Blank</h3>
                 </div>
               </div>
-            </div>
+                 </div>
 
             {/* Template cards */}
-            {templates.map((template, index) => (
+             {templates.map((template, index) => (
               <div 
                 key={index} 
                 className="cursor-pointer group flex-shrink-0"
@@ -255,9 +255,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
               >
                 <div className="bg-white rounded-xl border border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all duration-300 group-hover:scale-105 overflow-hidden w-48">
                   <div className="aspect-[4/3] relative overflow-hidden">
-                    <img 
-                      src={template.image} 
-                      alt={template.title}
+                     <img 
+                       src={template.image} 
+                       alt={template.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
@@ -266,11 +266,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
                     <h3 className="font-medium text-gray-900 text-base">{template.title}</h3>
                   </div>
                 </div>
-              </div>
-            ))}
+                   </div>
+             ))}
+          </div>
           </div>
         </div>
-      </div>
 
       {/* Recent forms section - Full width background */}
       <div className="w-full bg-white py-12">
@@ -359,8 +359,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
                            </Button>
                          </div>
                        </div>
-                     </div>
-                  </div>
+                   </div>
+                   </div>
                   
                   {/* Form Actions Dropdown */}
                   {selectedForm === form.id && (
@@ -414,12 +414,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewForm, onMenuClick, 
                           <Delete className="h-3 w-3 mr-2" />
                           Delete
                         </Button>
-                      </div>
-                    </div>
+                   </div>
+                 </div>
                   )}
                 </div>
             ))}
-          </div>
+           </div>
         </div>
       </div>
     </div>

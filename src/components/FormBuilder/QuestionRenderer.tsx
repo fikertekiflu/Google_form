@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
+import FileUpload from './FileUpload';
 
 interface QuestionRendererProps {
   question: Question;
@@ -11,6 +12,9 @@ interface QuestionRendererProps {
   isPreview?: boolean;
   value?: any;
   onChange?: (value: any) => void;
+  theme?: {
+    primaryColor: string;
+  };
 }
 
 const QuestionRenderer: React.FC<QuestionRendererProps> = ({
@@ -18,7 +22,8 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   questionNumber,
   isPreview = false,
   value,
-  onChange
+  onChange,
+  theme = { primaryColor: '#673ab7' }
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textValue, setTextValue] = useState('');
@@ -364,6 +369,16 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           </div>
         );
 
+      case 'file_upload':
+        return (
+          <FileUpload
+            question={question}
+            value={value || []}
+            onChange={onChange || (() => {})}
+            theme={theme}
+          />
+        );
+
       default:
         return <div>Unsupported question type</div>;
     }
@@ -379,6 +394,18 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           </h3>
           {question.description && (
             <p className="text-sm text-gray-600 mt-1">{question.description}</p>
+          )}
+          {question.settings?.imageUrl && (
+            <div className="mt-3">
+              <img
+                src={question.settings.imageUrl}
+                alt={question.settings.imageAlt || 'Question image'}
+                className="max-w-full h-auto max-h-48 rounded-lg border border-gray-200"
+              />
+              {question.settings.imageAlt && (
+                <p className="text-xs text-gray-500 mt-1">{question.settings.imageAlt}</p>
+              )}
+            </div>
           )}
         </div>
         
